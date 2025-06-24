@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TTS Data Platform</title>
+    <title>Audio Recording Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link
@@ -73,10 +73,10 @@
           <h1
             class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white"
           >
-            Data Collection Platform
+            LU Lab Audio Recorder
           </h1>
           <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm sm:text-base">
-            Manage files and record audio for your ASR/TTS projects.
+            Manage files and record audio for ASR/TTS project.
           </p>
         </div>
         <button
@@ -374,7 +374,7 @@
       // --- Database Functions ---
       function initDB() {
         return new Promise((resolve, reject) => {
-          const request = indexedDB.open(DB_NAME, 2); // Version 2 for new schema
+          const request = indexedDB.open(DB_NAME, 2);
           request.onupgradeneeded = (event) => {
             const dbInstance = event.target.result;
             if (!dbInstance.objectStoreNames.contains(FILES_STORE_NAME)) {
@@ -461,11 +461,10 @@
         await Promise.all(deletePromises);
       };
 
-      // --- Core Application Logic: Placed before callers ---
+      // --- Core Application Logic ---
       function getNextPromptIndex() {
         if (prompts.length === 0) return -1;
 
-        // For ordered and random, we only want to select from unseen prompts
         const unseenIndices = prompts
           .map((_, i) => i)
           .filter((i) => !usedPromptIndices.has(i));
@@ -476,7 +475,6 @@
           return unseenIndices[0];
         }
         if (promptSelectionMode === "sequential") {
-          // Find the next index, looping back to 0 if needed
           const nextSequentialIndex = (currentPromptIndex + 1) % prompts.length;
           return nextSequentialIndex;
         }
@@ -484,7 +482,7 @@
           const randomIndex = Math.floor(Math.random() * unseenIndices.length);
           return unseenIndices[randomIndex];
         }
-        return -1; // Should not be reached
+        return -1;
       }
 
       function nextPrompt() {
@@ -505,24 +503,49 @@
 
       // --- File Management ---
       async function handleFileUpload(files) {
-        showMessage(`Uploading ${files.length} file(s)...`);
-        const readPromises = [...files].map((file) => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-              await saveFileToDB({
-                filename: file.name,
-                content: e.target.result,
-              });
-              resolve();
-            };
-            reader.onerror = reject;
-            reader.readAsText(file);
+        const filesToProcess = Array.from(files);
+        const totalFiles = filesToProcess.length;
+        let processedCount = 0;
+        const CHUNK_SIZE = 10; // Process 10 files at a time to avoid memory issues
+
+        async function processChunk() {
+          const chunk = filesToProcess.splice(0, CHUNK_SIZE);
+          if (chunk.length === 0) {
+            await renderFileList();
+            hideMessage();
+            return;
+          }
+
+          showMessage(
+            `Processing files... ${
+              processedCount + chunk.length
+            } / ${totalFiles}`
+          );
+
+          const readPromises = chunk.map((file) => {
+            return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = async (e) => {
+                await saveFileToDB({
+                  filename: file.name,
+                  content: e.target.result,
+                });
+                processedCount++;
+                resolve();
+              };
+              reader.onerror = reject;
+              reader.readAsText(file);
+            });
           });
-        });
-        await Promise.all(readPromises);
-        await renderFileList();
-        hideMessage();
+
+          await Promise.all(readPromises);
+
+          // Use requestAnimationFrame to yield to the main thread before the next chunk
+          requestAnimationFrame(processChunk);
+        }
+
+        showMessage(`Starting to process ${totalFiles} files...`);
+        processChunk();
       }
 
       async function renderFileList() {
@@ -586,7 +609,7 @@
           .map((line) => line.trim())
           .filter(Boolean);
 
-        promptSelectionMode = "ordered"; // Default mode
+        promptSelectionMode = "ordered";
         recorderPromptSelection.value = "ordered";
 
         const recordings = await getRecordingsForFileFromDB(filename);
@@ -651,7 +674,6 @@
         await deleteRecordingFromDB(filename);
         listItem.remove();
 
-        // When deleting, we must also update the usedPromptIndices
         const recordings = await getRecordingsForFileFromDB(currentPromptFile);
         usedPromptIndices.clear();
         const recordedPrompts = new Set(recordings.map((r) => r.prompt));
