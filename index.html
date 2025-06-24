@@ -1,14 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Speech Training Recorder</title>
+    <title>TTS Data Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎙️</text></svg>"
     />
     <style>
       body {
@@ -16,6 +20,7 @@
         display: flex;
         flex-direction: column;
         min-height: 100vh;
+        transition: background-color 0.3s, color 0.3s;
       }
       main {
         flex-grow: 1;
@@ -29,128 +34,240 @@
           opacity: 1;
         }
         50% {
-          opacity: 0.5;
+          opacity: 0.7;
         }
       }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 20px;
+        border: 3px solid transparent;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background-color: #4b5563;
+      }
+      .file-drop-zone {
+        border: 2px dashed #9ca3af;
+      }
+      .file-drop-zone-active {
+        border-color: #3b82f6;
+        background-color: #eff6ff;
+      }
+      .dark .file-drop-zone-active {
+        background-color: #1e293b;
+      }
     </style>
+    <script>
+      tailwind.config = { darkMode: "class" };
+    </script>
   </head>
-  <body class="bg-gray-50 text-gray-800">
-    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
-      <header class="text-center mb-8">
-        <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-          Speech Training Recorder
-        </h1>
-        <p class="text-gray-600 mt-2 text-sm sm:text-base">
-          A web-based tool for ASR/TTS data collection.
-        </p>
+  <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-5xl">
+      <header class="flex justify-between items-center mb-8">
+        <div class="text-left">
+          <h1
+            class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white"
+          >
+            Data Collection Platform
+          </h1>
+          <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm sm:text-base">
+            Manage files and record audio for your ASR/TTS projects.
+          </p>
+        </div>
+        <button
+          id="theme-toggle"
+          class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+        >
+          <svg
+            id="theme-icon-light"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 hidden"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            />
+          </svg>
+          <svg
+            id="theme-icon-dark"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 hidden"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            />
+          </svg>
+        </button>
       </header>
 
       <main id="app-container">
-        <!-- Configuration Section -->
+        <!-- File Manager View -->
         <div
-          id="config-section"
-          class="bg-white p-6 rounded-2xl shadow-md mb-6"
+          id="file-manager-section"
+          class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg"
         >
-          <h2 class="text-xl font-semibold mb-4 border-b pb-2">
-            1. Configuration
-          </h2>
-          <div class="grid md:grid-cols-2 gap-6">
-            <div>
-              <label
-                for="prompt-file"
-                class="block text-sm font-medium text-gray-700 mb-1"
-                >Upload Prompt File (.txt)</label
-              >
-              <input
-                type="file"
-                id="prompt-file"
-                accept=".txt"
-                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-              />
-            </div>
-            <div>
-              <label
-                for="prompt-selection"
-                class="block text-sm font-medium text-gray-700 mb-1"
-                >Prompt Selection Mode</label
-              >
-              <select
-                id="prompt-selection"
-                class="w-full p-2 border border-gray-300 rounded-lg bg-white"
-              >
-                <option value="random">Random</option>
-                <option value="ordered">Ordered</option>
-                <option value="sequential">Sequential</option>
-              </select>
-            </div>
-          </div>
-          <div class="mt-6 text-center">
+          <h2 class="text-xl font-semibold mb-4">Project Files</h2>
+          <div
+            id="file-drop-zone"
+            class="file-drop-zone rounded-lg p-8 text-center text-gray-500 dark:text-gray-400 transition mb-6"
+          >
+            <p>Drag & drop your .txt files here, or</p>
+            <input
+              type="file"
+              id="prompt-file-input"
+              accept=".txt"
+              multiple
+              class="hidden"
+            />
             <button
-              id="start-session-btn"
-              class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-gray-400 w-full sm:w-auto"
+              id="upload-btn"
+              class="mt-4 bg-blue-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-blue-700 transition"
             >
-              Start Session
+              Select Files
             </button>
+          </div>
+          <div id="file-list-container">
+            <p
+              id="no-files-manager-message"
+              class="text-gray-500 dark:text-gray-400 text-center py-4"
+            >
+              No prompt files uploaded yet.
+            </p>
+            <ul id="file-list" class="space-y-3"></ul>
           </div>
         </div>
 
-        <!-- Recorder Section (Initially Hidden) -->
+        <!-- Recorder View (Initially Hidden) -->
         <div id="recorder-section" class="hidden">
-          <div class="bg-white p-6 rounded-2xl shadow-md mb-6">
-            <h2
-              class="text-xl font-semibold mb-4 border-b pb-2 flex items-center"
+          <div class="flex items-center mb-4">
+            <button
+              id="back-to-files-btn"
+              class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 mr-4"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+            </button>
+            <div>
+              <h2
+                id="recorder-title"
+                class="text-xl font-semibold text-gray-900 dark:text-white"
+              >
+                Recording Session
+              </h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                Select a prompt and start recording.
+              </p>
+            </div>
+          </div>
+
+          <div class="mb-6">
+            <label
+              for="recorder-prompt-selection"
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >Selection Mode</label
+            >
+            <select
+              id="recorder-prompt-selection"
+              class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white dark:bg-gray-700"
+            >
+              <option value="ordered">Ordered (Record unseen prompts)</option>
+              <option value="sequential">Sequential (Loop through all)</option>
+              <option value="random">Random (Pick unseen randomly)</option>
+            </select>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg mb-6">
+            <h3
+              class="font-semibold mb-4 border-b border-gray-200 dark:border-gray-700 pb-3 flex items-center"
             >
               <span
                 id="recording-light"
-                class="w-3 h-3 bg-gray-400 rounded-full mr-3"
-              ></span>
-              2. Record Audio
-            </h2>
+                class="w-3 h-3 bg-gray-400 dark:bg-gray-500 rounded-full mr-3 transition-colors"
+              ></span
+              >Record Audio
+            </h3>
             <div
               id="prompt-display"
-              class="my-4 p-4 sm:p-6 text-center text-base sm:text-lg md:text-xl font-medium bg-gray-100 rounded-lg min-h-[120px] flex items-center justify-center"
-            >
-              <p>Welcome! Press 'Next Prompt' to begin.</p>
-            </div>
+              class="my-4 p-4 sm:p-6 text-center text-lg md:text-xl font-medium bg-gray-100 dark:bg-gray-900 rounded-lg min-h-[120px] flex items-center justify-center text-gray-800 dark:text-gray-200 transition-colors"
+            ></div>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <button
                 id="record-btn"
-                class="bg-red-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-600 transition disabled:bg-gray-400"
+                class="bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition disabled:bg-gray-400"
               >
-                Start Recording
+                Start
               </button>
               <button
                 id="play-btn"
-                class="bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition disabled:bg-gray-400"
+                class="bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition disabled:bg-gray-400"
               >
-                Play Last
+                Play
               </button>
               <button
                 id="save-btn"
-                class="bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition disabled:bg-gray-400"
+                class="bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400"
               >
-                Save
+                Save & Next
               </button>
               <button
                 id="next-prompt-btn"
                 class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition disabled:bg-gray-400"
               >
-                Next Prompt
+                Skip
               </button>
             </div>
           </div>
 
-          <!-- Saved Recordings Section -->
-          <div class="bg-white p-6 rounded-2xl shadow-md">
-            <h2 class="text-xl font-semibold mb-4 border-b pb-2">
-              3. Session Files
-            </h2>
-            <p id="no-files-message" class="text-gray-500">
-              No files saved yet. Saved recordings will appear here.
+          <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+            <div
+              class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-3"
+            >
+              <h3 class="font-semibold">Session Files</h3>
+              <button
+                id="clear-all-btn"
+                class="text-sm text-red-500 hover:text-red-700 font-semibold transition disabled:text-gray-400"
+              >
+                Clear All
+              </button>
+            </div>
+            <p
+              id="no-files-message"
+              class="text-gray-500 dark:text-gray-400 text-center py-4"
+            >
+              No files saved yet.
             </p>
-            <ul id="recordings-list" class="space-y-2 max-h-60 overflow-y-auto">
-              <!-- Saved items will be injected here -->
-            </ul>
+            <ul
+              id="recordings-list"
+              class="space-y-2 max-h-60 overflow-y-auto"
+            ></ul>
             <div class="mt-6 text-center">
               <button
                 id="export-btn"
@@ -162,18 +279,17 @@
           </div>
         </div>
 
-        <!-- Message Modal (already responsive) -->
         <div
           id="modal"
-          class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50"
         >
           <div
-            class="bg-white rounded-lg p-6 shadow-xl max-w-sm w-full text-center"
+            class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-sm w-full text-center"
           >
-            <p id="modal-message" class="text-lg mb-4"></p>
+            <p id="modal-message" class="text-lg mb-6 dark:text-gray-200"></p>
             <button
               id="modal-close"
-              class="bg-blue-500 text-white px-4 py-2 rounded-lg"
+              class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
             >
               Close
             </button>
@@ -181,108 +297,421 @@
         </div>
       </main>
 
-      <footer class="text-center py-4 mt-8">
-        <p class="text-sm text-gray-500">Created by Htut Ko Ko.</p>
+      <footer class="text-center py-6 mt-8">
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          Created by Htut Ko Ko.
+        </p>
       </footer>
     </div>
 
     <script type="module">
       // --- State Management ---
       let prompts = [];
+      let currentPromptFile = null;
       let currentPromptIndex = -1;
       let currentPrompt = "";
-      let promptSelectionMode = "random";
+      let promptSelectionMode = "ordered"; // Default mode
       let usedPromptIndices = new Set();
-
       let mediaRecorder;
       let audioChunks = [];
       let lastAudioBlob = null;
       let isRecording = false;
-
-      const DB_NAME = "TTS_RecorderDB";
-      const STORE_NAME = "recordings";
       let db;
 
-      // --- DOM Elements ---
-      const configSection = document.getElementById("config-section");
-      const recorderSection = document.getElementById("recorder-section");
-      const promptFileInput = document.getElementById("prompt-file");
-      const promptSelectionSelect = document.getElementById("prompt-selection");
-      const startSessionBtn = document.getElementById("start-session-btn");
+      const DB_NAME = "TTS_DataPlatformDB";
+      const FILES_STORE_NAME = "prompt_files";
+      const RECORDINGS_STORE_NAME = "recordings";
 
+      // --- DOM Elements ---
+      const themeToggle = document.getElementById("theme-toggle");
+      const themeIconLight = document.getElementById("theme-icon-light");
+      const themeIconDark = document.getElementById("theme-icon-dark");
+      const fileManagerSection = document.getElementById(
+        "file-manager-section"
+      );
+      const recorderSection = document.getElementById("recorder-section");
+      const fileDropZone = document.getElementById("file-drop-zone");
+      const promptFileInput = document.getElementById("prompt-file-input");
+      const uploadBtn = document.getElementById("upload-btn");
+      const fileList = document.getElementById("file-list");
+      const noFilesManagerMessage = document.getElementById(
+        "no-files-manager-message"
+      );
+      const backToFilesBtn = document.getElementById("back-to-files-btn");
+      const recorderTitle = document.getElementById("recorder-title");
+      const recorderPromptSelection = document.getElementById(
+        "recorder-prompt-selection"
+      );
       const promptDisplay = document.getElementById("prompt-display");
       const recordBtn = document.getElementById("record-btn");
       const playBtn = document.getElementById("play-btn");
       const saveBtn = document.getElementById("save-btn");
       const nextPromptBtn = document.getElementById("next-prompt-btn");
       const exportBtn = document.getElementById("export-btn");
+      const clearAllBtn = document.getElementById("clear-all-btn");
       const recordingsList = document.getElementById("recordings-list");
       const noFilesMessage = document.getElementById("no-files-message");
       const recordingLight = document.getElementById("recording-light");
-
       const modal = document.getElementById("modal");
       const modalMessage = document.getElementById("modal-message");
       const modalClose = document.getElementById("modal-close");
 
+      // --- Theme Management ---
+      function applyTheme(theme) {
+        document.documentElement.classList.toggle("dark", theme === "dark");
+        themeIconLight.classList.toggle("hidden", theme !== "dark");
+        themeIconDark.classList.toggle("hidden", theme === "dark");
+      }
+
+      themeToggle.addEventListener("click", () => {
+        const newTheme = document.documentElement.classList.contains("dark")
+          ? "light"
+          : "dark";
+        localStorage.setItem("theme", newTheme);
+        applyTheme(newTheme);
+      });
+
       // --- Database Functions ---
       function initDB() {
         return new Promise((resolve, reject) => {
-          const request = indexedDB.open(DB_NAME, 1);
-
+          const request = indexedDB.open(DB_NAME, 2); // Version 2 for new schema
           request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-              db.createObjectStore(STORE_NAME, { keyPath: "filename" });
+            const dbInstance = event.target.result;
+            if (!dbInstance.objectStoreNames.contains(FILES_STORE_NAME)) {
+              dbInstance.createObjectStore(FILES_STORE_NAME, {
+                keyPath: "filename",
+              });
+            }
+            if (!dbInstance.objectStoreNames.contains(RECORDINGS_STORE_NAME)) {
+              const recordingsStore = dbInstance.createObjectStore(
+                RECORDINGS_STORE_NAME,
+                { keyPath: "filename" }
+              );
+              recordingsStore.createIndex("by_promptFile", "promptFile", {
+                unique: false,
+              });
             }
           };
-
           request.onsuccess = (event) => {
             db = event.target.result;
-            console.log("Database initialized successfully");
             resolve(db);
           };
-
-          request.onerror = (event) => {
-            console.error("Database error:", event.target.errorCode);
-            reject(event.target.error);
-          };
+          request.onerror = (event) => reject(event.target.error);
         });
       }
 
-      function saveRecordingToDB(data) {
+      const dbAction = (storeName, mode, action) => {
         return new Promise((resolve, reject) => {
-          const transaction = db.transaction([STORE_NAME], "readwrite");
-          const store = transaction.objectStore(STORE_NAME);
-          const request = store.add(data);
-          request.onsuccess = () => resolve();
-          request.onerror = (event) =>
-            reject("Error saving recording: " + event.target.error);
+          try {
+            const tx = db.transaction(storeName, mode);
+            const store = tx.objectStore(storeName);
+            action(store, resolve, reject);
+            tx.oncomplete = () => resolve();
+            tx.onerror = (event) => reject(event.target.error);
+          } catch (err) {
+            reject(err);
+          }
         });
+      };
+
+      const saveFileToDB = (fileData) =>
+        dbAction(FILES_STORE_NAME, "readwrite", (store, resolve) =>
+          store.put(fileData)
+        );
+      const getFileFromDB = (filename) =>
+        dbAction(
+          FILES_STORE_NAME,
+          "readonly",
+          (store, resolve) =>
+            (store.get(filename).onsuccess = (e) => resolve(e.target.result))
+        );
+      const getAllFilesFromDB = () =>
+        dbAction(
+          FILES_STORE_NAME,
+          "readonly",
+          (store, resolve) =>
+            (store.getAll().onsuccess = (e) => resolve(e.target.result))
+        );
+      const deleteFileFromDB = (filename) =>
+        dbAction(FILES_STORE_NAME, "readwrite", (store) =>
+          store.delete(filename)
+        );
+      const saveRecordingToDB = (recData) =>
+        dbAction(RECORDINGS_STORE_NAME, "readwrite", (store) =>
+          store.add(recData)
+        );
+      const getRecordingsForFileFromDB = (filename) =>
+        dbAction(
+          RECORDINGS_STORE_NAME,
+          "readonly",
+          (store, resolve) =>
+            (store.index("by_promptFile").getAll(filename).onsuccess = (e) =>
+              resolve(e.target.result))
+        );
+      const deleteRecordingFromDB = (filename) =>
+        dbAction(RECORDINGS_STORE_NAME, "readwrite", (store) =>
+          store.delete(filename)
+        );
+
+      const deleteRecordingsForFile = async (filename) => {
+        const recordingsToDelete = await getRecordingsForFileFromDB(filename);
+        const deletePromises = recordingsToDelete.map((rec) =>
+          deleteRecordingFromDB(rec.filename)
+        );
+        await Promise.all(deletePromises);
+      };
+
+      // --- Core Application Logic: Placed before callers ---
+      function getNextPromptIndex() {
+        if (prompts.length === 0) return -1;
+
+        // For ordered and random, we only want to select from unseen prompts
+        const unseenIndices = prompts
+          .map((_, i) => i)
+          .filter((i) => !usedPromptIndices.has(i));
+        if (unseenIndices.length === 0 && promptSelectionMode !== "sequential")
+          return -1;
+
+        if (promptSelectionMode === "ordered") {
+          return unseenIndices[0];
+        }
+        if (promptSelectionMode === "sequential") {
+          // Find the next index, looping back to 0 if needed
+          const nextSequentialIndex = (currentPromptIndex + 1) % prompts.length;
+          return nextSequentialIndex;
+        }
+        if (promptSelectionMode === "random") {
+          const randomIndex = Math.floor(Math.random() * unseenIndices.length);
+          return unseenIndices[randomIndex];
+        }
+        return -1; // Should not be reached
       }
 
-      function getAllRecordingsFromDB() {
-        return new Promise((resolve, reject) => {
-          const transaction = db.transaction([STORE_NAME], "readonly");
-          const store = transaction.objectStore(STORE_NAME);
-          const request = store.getAll();
-          request.onsuccess = (event) => resolve(event.target.result);
-          request.onerror = (event) =>
-            reject("Error fetching recordings: " + event.target.error);
-        });
+      function nextPrompt() {
+        const nextIndex = getNextPromptIndex();
+        if (nextIndex === -1) {
+          currentPrompt = "No more prompts available.";
+          if (promptSelectionMode !== "sequential") {
+            showMessage("You've completed all prompts for this mode!");
+          }
+        } else {
+          currentPromptIndex = nextIndex;
+          usedPromptIndices.add(currentPromptIndex);
+          currentPrompt = prompts[currentPromptIndex];
+        }
+        lastAudioBlob = null;
+        updateRecorderUI();
       }
 
-      function clearDB() {
-        return new Promise((resolve, reject) => {
-          const transaction = db.transaction([STORE_NAME], "readwrite");
-          const store = transaction.objectStore(STORE_NAME);
-          const request = store.clear();
-          request.onsuccess = () => resolve();
-          request.onerror = (event) =>
-            reject("Error clearing database: " + event.target.error);
+      // --- File Management ---
+      async function handleFileUpload(files) {
+        showMessage(`Uploading ${files.length} file(s)...`);
+        const readPromises = [...files].map((file) => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              await saveFileToDB({
+                filename: file.name,
+                content: e.target.result,
+              });
+              resolve();
+            };
+            reader.onerror = reject;
+            reader.readAsText(file);
+          });
         });
+        await Promise.all(readPromises);
+        await renderFileList();
+        hideMessage();
       }
 
-      // --- Audio Recording Functions ---
+      async function renderFileList() {
+        const files = await getAllFilesFromDB();
+        fileList.innerHTML = "";
+        noFilesManagerMessage.classList.toggle("hidden", files.length > 0);
+
+        for (const file of files) {
+          const recordings = await getRecordingsForFileFromDB(file.filename);
+          const totalPrompts = file.content
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean).length;
+          const li = document.createElement("li");
+          li.className =
+            "bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg flex items-center justify-between";
+          li.innerHTML = `
+                    <div class="truncate mr-4">
+                        <p class="font-semibold text-gray-800 dark:text-gray-200">${file.filename}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Progress: ${recordings.length} / ${totalPrompts} recorded</p>
+                    </div>
+                    <div class="flex-shrink-0 flex items-center gap-2">
+                        <button class="start-session-btn bg-blue-600 text-white font-semibold py-2 px-4 rounded-md text-sm hover:bg-blue-700 transition">Record</button>
+                        <button class="delete-file-btn p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                `;
+          li.querySelector(".start-session-btn").onclick = () =>
+            startRecordingSession(file.filename);
+          li.querySelector(".delete-file-btn").onclick = () =>
+            handleDeleteFile(file.filename);
+          fileList.appendChild(li);
+        }
+      }
+
+      async function handleDeleteFile(filename) {
+        const recordings = await getRecordingsForFileFromDB(filename);
+        const confirmed = confirm(
+          `Are you sure you want to delete "${filename}" and all its ${recordings.length} recordings? This cannot be undone.`
+        );
+        if (confirmed) {
+          await deleteRecordingsForFile(filename);
+          await deleteFileFromDB(filename);
+          await renderFileList();
+          showMessage(`"${filename}" was deleted.`);
+        }
+      }
+
+      // --- Recording Session Logic ---
+      async function startRecordingSession(filename) {
+        const fileData = await getFileFromDB(filename);
+        if (!fileData) {
+          showMessage("Could not load file data.");
+          return;
+        }
+
+        currentPromptFile = filename;
+        prompts = fileData.content
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+        promptSelectionMode = "ordered"; // Default mode
+        recorderPromptSelection.value = "ordered";
+
+        const recordings = await getRecordingsForFileFromDB(filename);
+        usedPromptIndices.clear();
+        const recordedPrompts = new Set(recordings.map((r) => r.prompt));
+        prompts.forEach((p, i) => {
+          if (recordedPrompts.has(p)) usedPromptIndices.add(i);
+        });
+
+        recorderTitle.textContent = `Recording: ${filename}`;
+        fileManagerSection.classList.add("hidden");
+        recorderSection.classList.remove("hidden");
+        await loadSessionRecordings();
+        nextPrompt();
+      }
+
+      function returnToFileManager() {
+        currentPromptFile = null;
+        prompts = [];
+        recorderSection.classList.add("hidden");
+        fileManagerSection.classList.remove("hidden");
+        renderFileList();
+      }
+
+      async function saveRecording() {
+        if (!lastAudioBlob || !currentPrompt) {
+          showMessage("No recording to save.");
+          return;
+        }
+        const timestamp = new Date();
+        const filename = `recording_${timestamp
+          .toISOString()
+          .replace(/[-:.]/g, "")
+          .slice(0, -4)}Z.wav`;
+        const wavBlob = await createWavBlob(lastAudioBlob);
+        const recordingData = {
+          filename,
+          prompt: currentPrompt,
+          timestamp: timestamp.toISOString(),
+          sample_rate: wavBlob.sampleRate,
+          bit_depth: 16,
+          audio_blob: wavBlob,
+          promptFile: currentPromptFile,
+        };
+        try {
+          await saveRecordingToDB(recordingData);
+          addRecordingToListUI(recordingData);
+          nextPrompt();
+        } catch (error) {
+          showMessage(`Error saving recording: ${error}`);
+        }
+      }
+
+      async function loadSessionRecordings() {
+        const recordings = await getRecordingsForFileFromDB(currentPromptFile);
+        recordingsList.innerHTML = "";
+        recordings.forEach(addRecordingToListUI);
+        updateRecorderUI();
+      }
+
+      async function handleSessionItemDelete(filename, listItem) {
+        await deleteRecordingFromDB(filename);
+        listItem.remove();
+
+        // When deleting, we must also update the usedPromptIndices
+        const recordings = await getRecordingsForFileFromDB(currentPromptFile);
+        usedPromptIndices.clear();
+        const recordedPrompts = new Set(recordings.map((r) => r.prompt));
+        prompts.forEach((p, i) => {
+          if (recordedPrompts.has(p)) usedPromptIndices.add(i);
+        });
+
+        updateRecorderUI();
+      }
+
+      async function handleClearCurrentSession() {
+        const confirmed = confirm(
+          `Are you sure you want to delete all recordings for "${currentPromptFile}"?`
+        );
+        if (confirmed) {
+          await deleteRecordingsForFile(currentPromptFile);
+          recordingsList.innerHTML = "";
+          usedPromptIndices.clear();
+          updateRecorderUI();
+          showMessage("Session recordings cleared.");
+        }
+      }
+
+      // --- UI Functions ---
+      function updateRecorderUI() {
+        promptDisplay.textContent = currentPrompt || "No prompt selected.";
+        recordBtn.disabled =
+          !currentPrompt || currentPrompt.startsWith("No more");
+        recordBtn.textContent = isRecording ? "Stop" : "Start";
+
+        if (isRecording) {
+          recordingLight.classList.add("bg-red-500", "recording-indicator");
+        } else {
+          recordingLight.classList.remove("bg-red-500", "recording-indicator");
+        }
+
+        playBtn.disabled = !lastAudioBlob || isRecording;
+        saveBtn.disabled = !lastAudioBlob || isRecording;
+        nextPromptBtn.disabled = isRecording;
+
+        const hasRecordings = recordingsList.children.length > 0;
+        noFilesMessage.classList.toggle("hidden", hasRecordings);
+        exportBtn.disabled = !hasRecordings;
+        clearAllBtn.disabled = !hasRecordings;
+      }
+
+      function addRecordingToListUI(recData) {
+        const li = document.createElement("li");
+        li.className =
+          "flex justify-between items-center bg-gray-100 dark:bg-gray-700/50 p-3 rounded-lg text-sm";
+        li.innerHTML = `<div class="truncate mr-4"><p class="font-mono text-xs sm:text-sm text-gray-800 dark:text-gray-200">${recData.filename}</p><p class="text-xs text-gray-500 dark:text-gray-400 truncate" title="${recData.prompt}">${recData.prompt}</p></div>`;
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className =
+          "p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition";
+        deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
+        deleteBtn.onclick = () => handleSessionItemDelete(recData.filename, li);
+        li.appendChild(deleteBtn);
+        recordingsList.appendChild(li);
+      }
+
       async function startRecording() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           showMessage("Your browser does not support audio recording.");
@@ -296,28 +725,21 @@
           mediaRecorder = new MediaRecorder(stream);
           audioChunks = [];
           lastAudioBlob = null;
-
-          mediaRecorder.ondataavailable = (event) => {
+          mediaRecorder.ondataavailable = (event) =>
             audioChunks.push(event.data);
-          };
-
           mediaRecorder.onstop = () => {
-            // FIX: Use the recorder's actual MIME type, not a hardcoded 'audio/wav'.
-            // This is crucial for playback compatibility on mobile devices.
             const mimeType = mediaRecorder.mimeType || "audio/webm";
             lastAudioBlob = new Blob(audioChunks, { type: mimeType });
-            updateUI();
+            updateRecorderUI();
           };
-
           mediaRecorder.start();
-          updateUI();
+          updateRecorderUI();
         } catch (err) {
           isRecording = false;
           showMessage(
-            "Microphone access was denied. Please allow microphone access in your browser settings."
+            "Microphone access denied. Please allow access in browser settings."
           );
-          console.error("Error accessing microphone:", err);
-          updateUI();
+          updateRecorderUI();
         }
       }
 
@@ -330,253 +752,58 @@
       }
 
       async function playLastRecording() {
-        if (lastAudioBlob) {
-          const audioUrl = URL.createObjectURL(lastAudioBlob);
-          const audio = new Audio(audioUrl);
-          try {
-            await audio.play();
-          } catch (err) {
-            console.error("Playback failed:", err);
-            showMessage(
-              `Playback failed. This can happen on some mobile browsers. Error: ${err.name}`
-            );
-          }
-        }
+        if (lastAudioBlob) new Audio(URL.createObjectURL(lastAudioBlob)).play();
       }
 
-      // --- Core Application Logic ---
-      function handleFileSelect(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          prompts = e.target.result
-            .split("\n")
-            .map((line) => line.trim())
-            .filter((line) => line.length > 0);
-          if (prompts.length === 0) {
-            showMessage(
-              "The selected file is empty or contains no valid prompts."
-            );
-          }
-          updateUI();
-        };
-        reader.readAsText(file);
-      }
-
-      function startSession() {
-        if (prompts.length === 0) {
-          showMessage("Please upload a prompt file first.");
-          return;
-        }
-        promptSelectionMode = promptSelectionSelect.value;
-        configSection.classList.add("hidden");
-        recorderSection.classList.remove("hidden");
-        loadRecordingsFromDB();
-        nextPrompt();
-      }
-
-      function getNextPromptIndex() {
-        if (prompts.length === 0) return -1;
-
-        if (promptSelectionMode === "ordered") {
-          if (usedPromptIndices.size >= prompts.length) return -1;
-          for (let i = 0; i < prompts.length; i++) {
-            if (!usedPromptIndices.has(i)) return i;
-          }
-          return -1;
-        }
-
-        if (promptSelectionMode === "sequential") {
-          return (currentPromptIndex + 1) % prompts.length;
-        }
-
-        if (usedPromptIndices.size >= prompts.length) return -1;
-        let nextIndex;
-        do {
-          nextIndex = Math.floor(Math.random() * prompts.length);
-        } while (usedPromptIndices.has(nextIndex));
-        return nextIndex;
-      }
-
-      function nextPrompt() {
-        const nextIndex = getNextPromptIndex();
-        if (nextIndex === -1) {
-          currentPrompt = "No more prompts available.";
-          showMessage("You've completed all prompts!");
-        } else {
-          currentPromptIndex = nextIndex;
-          usedPromptIndices.add(currentPromptIndex);
-          currentPrompt = prompts[currentPromptIndex];
-        }
-        lastAudioBlob = null;
-        updateUI();
-      }
-
-      async function saveRecording() {
-        if (!lastAudioBlob || !currentPrompt) {
-          showMessage("No recording to save.");
-          return;
-        }
-
-        const timestamp = new Date();
-        const filename = `recording_${timestamp
-          .toISOString()
-          .replace(/[-:.]/g, "")
-          .slice(0, -4)}Z.wav`;
-        const wavBlob = await createWavBlob(lastAudioBlob);
-
-        const recordingData = {
-          filename: filename,
-          prompt: currentPrompt,
-          timestamp: timestamp.toISOString(),
-          sample_rate: wavBlob.sampleRate,
-          bit_depth: 16,
-          audio_blob: wavBlob,
-        };
-
-        try {
-          await saveRecordingToDB(recordingData);
-          addRecordingToList(recordingData);
-          showMessage("Recording saved successfully!");
-          nextPrompt();
-        } catch (error) {
-          showMessage(`Error: ${error}`);
-        }
-      }
-
-      async function loadRecordingsFromDB() {
-        const recordings = await getAllRecordingsFromDB();
-        recordingsList.innerHTML = "";
-        usedPromptIndices.clear();
-        if (recordings.length > 0) {
-          recordings.forEach((rec) => {
-            addRecordingToList(rec);
-            const promptIndex = prompts.findIndex((p) => p === rec.prompt);
-            if (promptIndex !== -1) {
-              usedPromptIndices.add(promptIndex);
-            }
-          });
-        }
-        updateUI();
-      }
-
-      // --- UI Functions ---
-      function updateUI() {
-        startSessionBtn.disabled = prompts.length === 0;
-        promptDisplay.textContent =
-          currentPrompt || "Upload a file and start the session.";
-        recordBtn.disabled =
-          !currentPrompt || currentPrompt.startsWith("No more");
-        recordBtn.textContent = isRecording
-          ? "Stop Recording"
-          : "Start Recording";
-
-        if (isRecording) {
-          recordBtn.classList.remove("bg-red-500", "hover:bg-red-600");
-          recordBtn.classList.add("bg-yellow-500", "hover:bg-yellow-600");
-          recordingLight.classList.remove("bg-gray-400");
-          recordingLight.classList.add("bg-red-500", "recording-indicator");
-        } else {
-          recordBtn.classList.add("bg-red-500", "hover:bg-red-600");
-          recordBtn.classList.remove("bg-yellow-500", "hover:bg-yellow-600");
-          recordingLight.classList.add("bg-gray-400");
-          recordingLight.classList.remove("bg-red-500", "recording-indicator");
-        }
-
-        playBtn.disabled = !lastAudioBlob || isRecording;
-        saveBtn.disabled = !lastAudioBlob || isRecording;
-        nextPromptBtn.disabled = isRecording;
-
-        const hasRecordings = recordingsList.children.length > 0;
-        noFilesMessage.classList.toggle("hidden", hasRecordings);
-        exportBtn.disabled = !hasRecordings;
-      }
-
-      function addRecordingToList(recordingData) {
-        const li = document.createElement("li");
-        li.className =
-          "flex justify-between items-center bg-gray-100 p-2 rounded-lg text-sm";
-        li.innerHTML = `
-                <span class="font-mono text-xs sm:text-sm">${recordingData.filename}</span>
-                <span class="text-xs text-gray-500 truncate mx-2 flex-1 text-right" title="${recordingData.prompt}">${recordingData.prompt}</span>
-            `;
-        recordingsList.appendChild(li);
-      }
-
-      function showMessage(message) {
-        modalMessage.textContent = message;
-        modal.classList.remove("hidden");
-      }
-
-      function hideMessage() {
-        modal.classList.add("hidden");
-      }
-
-      // --- Export Function ---
       async function exportSession() {
-        const recordings = await getAllRecordingsFromDB();
+        const recordings = await getRecordingsForFileFromDB(currentPromptFile);
         if (recordings.length === 0) {
-          showMessage("There are no recordings to export.");
+          showMessage("No recordings in this session to export.");
           return;
         }
-
-        showMessage("Preparing export... Please wait.");
-
+        showMessage("Preparing export...");
         const zip = new JSZip();
         const audioFolder = zip.folder("wavs");
-
         let tsvContent =
           "filename\tprompt\ttimestamp\tsample_rate\tbit_depth\n";
         recordings.forEach((rec) => {
-          const safePrompt = rec.prompt.replace(/\s/g, " ");
-          tsvContent += `${rec.filename}\t${safePrompt}\t${rec.timestamp}\t${rec.sample_rate}\t${rec.bit_depth}\n`;
+          tsvContent += `${rec.filename}\t${rec.prompt.replace(/\s/g, " ")}\t${
+            rec.timestamp
+          }\t${rec.sample_rate}\t${rec.bit_depth}\n`;
           audioFolder.file(rec.filename, rec.audio_blob);
         });
-
         zip.file("recordings.tsv", tsvContent);
-
-        zip
-          .generateAsync({ type: "blob" })
-          .then(function (content) {
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(content);
-            const sessionName = `tts_session_${
-              new Date().toISOString().split("T")[0]
-            }.zip`;
-            link.download = sessionName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            hideMessage();
-          })
-          .catch((err) => {
-            console.error("Error creating zip file:", err);
-            showMessage("An error occurred while creating the zip file.");
-          });
+        zip.generateAsync({ type: "blob" }).then((content) => {
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(content);
+          link.download = `${currentPromptFile.replace(
+            ".txt",
+            ""
+          )}_session.zip`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          hideMessage();
+        });
       }
 
-      // --- WAV Conversion Utility ---
       async function createWavBlob(audioBlob) {
         const audioContext = new (window.AudioContext ||
           window.webkitAudioContext)();
         const arrayBuffer = await audioBlob.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-        const sampleRate = audioBuffer.sampleRate;
-        const numChannels = audioBuffer.numberOfChannels;
-        const pcmData = audioBuffer.getChannelData(0);
-
-        const bitDepth = 16;
-        const bytesPerSample = bitDepth / 8;
+        const [sampleRate, numChannels, pcmData] = [
+          audioBuffer.sampleRate,
+          1,
+          audioBuffer.getChannelData(0),
+        ];
+        const [bitDepth, bytesPerSample] = [16, 2];
         const dataSize = pcmData.length * bytesPerSample;
-        const blockAlign = numChannels * bytesPerSample;
-        const byteRate = sampleRate * blockAlign;
-
         const buffer = new ArrayBuffer(44 + dataSize);
         const view = new DataView(buffer);
-
+        const writeString = (v, o, s) => {
+          for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i));
+        };
         writeString(view, 0, "RIFF");
         view.setUint32(4, 36 + dataSize, true);
         writeString(view, 8, "WAVE");
@@ -585,76 +812,78 @@
         view.setUint16(20, 1, true);
         view.setUint16(22, numChannels, true);
         view.setUint32(24, sampleRate, true);
-        view.setUint32(28, byteRate, true);
-        view.setUint16(32, blockAlign, true);
+        view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
+        view.setUint16(32, numChannels * bytesPerSample, true);
         view.setUint16(34, bitDepth, true);
         writeString(view, 36, "data");
         view.setUint32(40, dataSize, true);
-
         let offset = 44;
         for (let i = 0; i < pcmData.length; i++, offset += 2) {
           let s = Math.max(-1, Math.min(1, pcmData[i]));
           view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
         }
-
         const wavBlob = new Blob([view], { type: "audio/wav" });
         wavBlob.sampleRate = sampleRate;
         return wavBlob;
       }
 
-      function writeString(view, offset, string) {
-        for (let i = 0; i < string.length; i++) {
-          view.setUint8(offset + i, string.charCodeAt(i));
-        }
+      function showMessage(message) {
+        modalMessage.textContent = message;
+        modal.classList.remove("hidden");
+      }
+      function hideMessage() {
+        modal.classList.add("hidden");
       }
 
-      // --- Event Listeners ---
-      promptFileInput.addEventListener("change", handleFileSelect);
-      startSessionBtn.addEventListener("click", startSession);
+      // --- Initialization ---
+      function setupDragAndDrop() {
+        fileDropZone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          fileDropZone.classList.add("file-drop-zone-active");
+        });
+        fileDropZone.addEventListener("dragleave", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          fileDropZone.classList.remove("file-drop-zone-active");
+        });
+        fileDropZone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          fileDropZone.classList.remove("file-drop-zone-active");
+          handleFileUpload(e.dataTransfer.files);
+        });
+      }
 
-      recordBtn.addEventListener("click", () => {
-        isRecording ? stopRecording() : startRecording();
-      });
-
+      // Event Listeners
+      uploadBtn.onclick = () => promptFileInput.click();
+      promptFileInput.onchange = (e) => handleFileUpload(e.target.files);
+      backToFilesBtn.addEventListener("click", returnToFileManager);
+      recordBtn.addEventListener("click", () =>
+        isRecording ? stopRecording() : startRecording()
+      );
       playBtn.addEventListener("click", playLastRecording);
       saveBtn.addEventListener("click", saveRecording);
       nextPromptBtn.addEventListener("click", nextPrompt);
       exportBtn.addEventListener("click", exportSession);
+      clearAllBtn.addEventListener("click", handleClearCurrentSession);
+      recorderPromptSelection.addEventListener("change", (e) => {
+        promptSelectionMode = e.target.value;
+      });
       modalClose.addEventListener("click", hideMessage);
 
-      window.addEventListener("beforeunload", (event) => {
-        if (isRecording || lastAudioBlob) {
-          event.preventDefault();
-          event.returnValue = "";
-          return "You have unsaved changes. Are you sure you want to leave?";
-        }
-      });
-
-      // --- Initialization ---
       async function initializeApp() {
+        applyTheme(localStorage.getItem("theme") || "light");
+        setupDragAndDrop();
         try {
           await initDB();
-          const recordings = await getAllRecordingsFromDB();
-          if (recordings.length > 0) {
-            const resume = confirm(
-              "It looks like you have a saved session. Do you want to resume it? \n\nClick 'Cancel' to start a new session (this will delete your old data)."
-            );
-            if (resume) {
-              showMessage(
-                "Please re-upload your prompt file to continue your session."
-              );
-            } else {
-              await clearDB();
-              showMessage("Previous session cleared. Please start a new one.");
-            }
-          }
+          await renderFileList();
         } catch (err) {
-          console.error("Initialization failed", err);
           showMessage(
-            "Could not initialize the application. Please ensure your browser supports IndexedDB and try again."
+            "Could not initialize the application's database. Please try again or use a different browser."
           );
+          console.error("Initialization failed", err);
         }
-        updateUI();
       }
 
       initializeApp();
