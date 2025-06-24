@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Speech Training Recorder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .recording-indicator {
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-gray-800">
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
+      <header class="text-center mb-8">
+        <!-- Responsive header font sizes for mobile, tablet, and desktop -->
+        <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
+          Speech Training Recorder
+        </h1>
+        <p class="text-gray-600 mt-2 text-sm sm:text-base">
+          A web-based tool for ASR/TTS data collection.
+        </p>
+      </header>
+
+      <main id="app-container">
+        <!-- Configuration Section -->
+        <div
+          id="config-section"
+          class="bg-white p-6 rounded-2xl shadow-md mb-6"
+        >
+          <h2 class="text-xl font-semibold mb-4 border-b pb-2">
+            1. Configuration
+          </h2>
+          <!-- This grid stacks on mobile and becomes 2 columns on medium screens (md) and up -->
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <label
+                for="prompt-file"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Upload Prompt File (.txt)</label
+              >
+              <input
+                type="file"
+                id="prompt-file"
+                accept=".txt"
+                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+              />
+            </div>
+            <div>
+              <label
+                for="prompt-selection"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Prompt Selection Mode</label
+              >
+              <select
+                id="prompt-selection"
+                class="w-full p-2 border border-gray-300 rounded-lg bg-white"
+              >
+                <option value="random">Random</option>
+                <option value="ordered">Ordered</option>
+                <option value="sequential">Sequential</option>
+              </select>
+            </div>
+          </div>
+          <div class="mt-6 text-center">
+            <button
+              id="start-session-btn"
+              class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-gray-400 w-full sm:w-auto"
+            >
+              Start Session
+            </button>
+          </div>
+        </div>
+
+        <!-- Recorder Section (Initially Hidden) -->
+        <div id="recorder-section" class="hidden">
+          <div class="bg-white p-6 rounded-2xl shadow-md mb-6">
+            <h2
+              class="text-xl font-semibold mb-4 border-b pb-2 flex items-center"
+            >
+              <span
+                id="recording-light"
+                class="w-3 h-3 bg-gray-400 rounded-full mr-3"
+              ></span>
+              2. Record Audio
+            </h2>
+            <!-- Responsive prompt font sizes -->
+            <div
+              id="prompt-display"
+              class="my-4 p-4 sm:p-6 text-center text-base sm:text-lg md:text-xl font-medium bg-gray-100 rounded-lg min-h-[120px] flex items-center justify-center"
+            >
+              <p>Welcome! Press 'Next Prompt' to begin.</p>
+            </div>
+            <!-- Button grid: 2 columns on mobile/tablet, 4 columns on large screens (lg) -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <button
+                id="record-btn"
+                class="bg-red-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-600 transition disabled:bg-gray-400"
+              >
+                Start Recording
+              </button>
+              <button
+                id="play-btn"
+                class="bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition disabled:bg-gray-400"
+              >
+                Play Last
+              </button>
+              <button
+                id="save-btn"
+                class="bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition disabled:bg-gray-400"
+              >
+                Save
+              </button>
+              <button
+                id="next-prompt-btn"
+                class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition disabled:bg-gray-400"
+              >
+                Next Prompt
+              </button>
+            </div>
+          </div>
+
+          <!-- Saved Recordings Section -->
+          <div class="bg-white p-6 rounded-2xl shadow-md">
+            <h2 class="text-xl font-semibold mb-4 border-b pb-2">
+              3. Session Files
+            </h2>
+            <p id="no-files-message" class="text-gray-500">
+              No files saved yet. Saved recordings will appear here.
+            </p>
+            <ul id="recordings-list" class="space-y-2 max-h-60 overflow-y-auto">
+              <!-- Saved items will be injected here -->
+            </ul>
+            <div class="mt-6 text-center">
+              <button
+                id="export-btn"
+                class="bg-purple-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-700 transition disabled:bg-gray-400 w-full sm:w-auto"
+              >
+                Export Session (.zip)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Message Modal (already responsive) -->
+        <div
+          id="modal"
+          class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        >
+          <div
+            class="bg-white rounded-lg p-6 shadow-xl max-w-sm w-full text-center"
+          >
+            <p id="modal-message" class="text-lg mb-4"></p>
+            <button
+              id="modal-close"
+              class="bg-blue-500 text-white px-4 py-2 rounded-lg"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      // --- State Management ---
+      let prompts = [];
+      let currentPromptIndex = -1;
+      let currentPrompt = "";
+      let promptSelectionMode = "random";
+      let usedPromptIndices = new Set();
+
+      let mediaRecorder;
+      let audioChunks = [];
+      let lastAudioBlob = null;
+      let isRecording = false;
+
+      const DB_NAME = "TTS_RecorderDB";
+      const STORE_NAME = "recordings";
+      let db;
+
+      // --- DOM Elements ---
+      const configSection = document.getElementById("config-section");
+      const recorderSection = document.getElementById("recorder-section");
+      const promptFileInput = document.getElementById("prompt-file");
+      const promptSelectionSelect = document.getElementById("prompt-selection");
+      const startSessionBtn = document.getElementById("start-session-btn");
+
+      const promptDisplay = document.getElementById("prompt-display");
+      const recordBtn = document.getElementById("record-btn");
+      const playBtn = document.getElementById("play-btn");
+      const saveBtn = document.getElementById("save-btn");
+      const nextPromptBtn = document.getElementById("next-prompt-btn");
+      const exportBtn = document.getElementById("export-btn");
+      const recordingsList = document.getElementById("recordings-list");
+      const noFilesMessage = document.getElementById("no-files-message");
+      const recordingLight = document.getElementById("recording-light");
+
+      const modal = document.getElementById("modal");
+      const modalMessage = document.getElementById("modal-message");
+      const modalClose = document.getElementById("modal-close");
+
+      // --- Database Functions ---
+      function initDB() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, 1);
+
+          request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+              db.createObjectStore(STORE_NAME, { keyPath: "filename" });
+            }
+          };
+
+          request.onsuccess = (event) => {
+            db = event.target.result;
+            console.log("Database initialized successfully");
+            resolve(db);
+          };
+
+          request.onerror = (event) => {
+            console.error("Database error:", event.target.errorCode);
+            reject(event.target.error);
+          };
+        });
+      }
+
+      function saveRecordingToDB(data) {
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction([STORE_NAME], "readwrite");
+          const store = transaction.objectStore(STORE_NAME);
+          const request = store.add(data);
+          request.onsuccess = () => resolve();
+          request.onerror = (event) =>
+            reject("Error saving recording: " + event.target.error);
+        });
+      }
+
+      function getAllRecordingsFromDB() {
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction([STORE_NAME], "readonly");
+          const store = transaction.objectStore(STORE_NAME);
+          const request = store.getAll();
+          request.onsuccess = (event) => resolve(event.target.result);
+          request.onerror = (event) =>
+            reject("Error fetching recordings: " + event.target.error);
+        });
+      }
+
+      function clearDB() {
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction([STORE_NAME], "readwrite");
+          const store = transaction.objectStore(STORE_NAME);
+          const request = store.clear();
+          request.onsuccess = () => resolve();
+          request.onerror = (event) =>
+            reject("Error clearing database: " + event.target.error);
+        });
+      }
+
+      // --- Audio Recording Functions ---
+      async function startRecording() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          showMessage("Your browser does not support audio recording.");
+          return;
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          isRecording = true;
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          lastAudioBlob = null;
+
+          mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+          };
+
+          mediaRecorder.onstop = () => {
+            lastAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+            updateUI();
+          };
+
+          mediaRecorder.start();
+          updateUI();
+        } catch (err) {
+          isRecording = false;
+          showMessage(
+            "Microphone access was denied. Please allow microphone access in your browser settings."
+          );
+          console.error("Error accessing microphone:", err);
+          updateUI();
+        }
+      }
+
+      function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+          mediaRecorder.stop();
+          isRecording = false;
+          // Stop all media tracks to turn off the microphone indicator
+          mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+        }
+      }
+
+      function playLastRecording() {
+        if (lastAudioBlob) {
+          const audioUrl = URL.createObjectURL(lastAudioBlob);
+          const audio = new Audio(audioUrl);
+          audio.play();
+        }
+      }
+
+      // --- Core Application Logic ---
+      function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          prompts = e.target.result
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0);
+          if (prompts.length === 0) {
+            showMessage(
+              "The selected file is empty or contains no valid prompts."
+            );
+          }
+          updateUI();
+        };
+        reader.readAsText(file);
+      }
+
+      function startSession() {
+        if (prompts.length === 0) {
+          showMessage("Please upload a prompt file first.");
+          return;
+        }
+        promptSelectionMode = promptSelectionSelect.value;
+        configSection.classList.add("hidden");
+        recorderSection.classList.remove("hidden");
+        loadRecordingsFromDB();
+        nextPrompt();
+      }
+
+      function getNextPromptIndex() {
+        if (prompts.length === 0) return -1;
+
+        if (promptSelectionMode === "ordered") {
+          if (usedPromptIndices.size >= prompts.length) {
+            return -1; // End of list
+          }
+          // Find the next unused index
+          for (let i = 0; i < prompts.length; i++) {
+            if (!usedPromptIndices.has(i)) return i;
+          }
+          return -1;
+        }
+
+        if (promptSelectionMode === "sequential") {
+          return (currentPromptIndex + 1) % prompts.length;
+        }
+
+        // Random mode
+        if (usedPromptIndices.size >= prompts.length) {
+          return -1; // All prompts used
+        }
+        let nextIndex;
+        do {
+          nextIndex = Math.floor(Math.random() * prompts.length);
+        } while (usedPromptIndices.has(nextIndex));
+        return nextIndex;
+      }
+
+      function nextPrompt() {
+        const nextIndex = getNextPromptIndex();
+        if (nextIndex === -1) {
+          currentPrompt = "No more prompts available.";
+          showMessage("You've completed all prompts!");
+          updateUI();
+          return;
+        }
+        currentPromptIndex = nextIndex;
+        usedPromptIndices.add(currentPromptIndex);
+        currentPrompt = prompts[currentPromptIndex];
+        lastAudioBlob = null;
+        updateUI();
+      }
+
+      async function saveRecording() {
+        if (!lastAudioBlob || !currentPrompt) {
+          showMessage("No recording to save.");
+          return;
+        }
+
+        const timestamp = new Date();
+        const filename = `recording_${timestamp
+          .toISOString()
+          .replace(/[-:.]/g, "")
+          .slice(0, -4)}Z.wav`;
+
+        const wavBlob = await createWavBlob(lastAudioBlob);
+
+        const recordingData = {
+          filename: filename,
+          prompt: currentPrompt,
+          timestamp: timestamp.toISOString(),
+          sample_rate: wavBlob.sampleRate, // Get actual sample rate
+          bit_depth: 16, // This is an assumption from the converter
+          audio_blob: wavBlob,
+        };
+
+        try {
+          await saveRecordingToDB(recordingData);
+          addRecordingToList(recordingData);
+          showMessage("Recording saved successfully!");
+          lastAudioBlob = null; // Clear after saving
+          nextPrompt(); // Automatically go to next prompt
+        } catch (error) {
+          showMessage(`Error: ${error}`);
+        }
+      }
+
+      async function loadRecordingsFromDB() {
+        const recordings = await getAllRecordingsFromDB();
+        recordingsList.innerHTML = "";
+        usedPromptIndices.clear(); // Reset used prompts
+        if (recordings.length > 0) {
+          recordings.forEach((rec) => {
+            addRecordingToList(rec);
+            // Find the prompt index to mark it as used
+            const promptIndex = prompts.findIndex((p) => p === rec.prompt);
+            if (promptIndex !== -1) {
+              usedPromptIndices.add(promptIndex);
+            }
+          });
+        }
+        updateUI();
+      }
+
+      // --- UI Functions ---
+      function updateUI() {
+        // Config section
+        startSessionBtn.disabled = prompts.length === 0;
+
+        // Recorder section
+        promptDisplay.textContent =
+          currentPrompt || "Upload a file and start the session.";
+
+        recordBtn.disabled =
+          !currentPrompt || currentPrompt.startsWith("No more");
+        recordBtn.textContent = isRecording
+          ? "Stop Recording"
+          : "Start Recording";
+
+        if (isRecording) {
+          recordBtn.classList.remove("bg-red-500", "hover:bg-red-600");
+          recordBtn.classList.add("bg-yellow-500", "hover:bg-yellow-600");
+          recordingLight.classList.remove("bg-gray-400");
+          recordingLight.classList.add("bg-red-500", "recording-indicator");
+        } else {
+          recordBtn.classList.add("bg-red-500", "hover:bg-red-600");
+          recordBtn.classList.remove("bg-yellow-500", "hover:bg-yellow-600");
+          recordingLight.classList.add("bg-gray-400");
+          recordingLight.classList.remove("bg-red-500", "recording-indicator");
+        }
+
+        playBtn.disabled = !lastAudioBlob || isRecording;
+        saveBtn.disabled = !lastAudioBlob || isRecording;
+        nextPromptBtn.disabled = isRecording;
+
+        const hasRecordings = recordingsList.children.length > 0;
+        noFilesMessage.classList.toggle("hidden", hasRecordings);
+        exportBtn.disabled = !hasRecordings;
+      }
+
+      function addRecordingToList(recordingData) {
+        const li = document.createElement("li");
+        li.className =
+          "flex justify-between items-center bg-gray-100 p-2 rounded-lg text-sm";
+        li.innerHTML = `
+                <span class="font-mono text-xs sm:text-sm">${recordingData.filename}</span>
+                <span class="text-xs text-gray-500 truncate mx-2 flex-1 text-right" title="${recordingData.prompt}">${recordingData.prompt}</span>
+            `;
+        recordingsList.appendChild(li);
+      }
+
+      function showMessage(message) {
+        modalMessage.textContent = message;
+        modal.classList.remove("hidden");
+      }
+
+      function hideMessage() {
+        modal.classList.add("hidden");
+      }
+
+      // --- Export Function ---
+      async function exportSession() {
+        const recordings = await getAllRecordingsFromDB();
+        if (recordings.length === 0) {
+          showMessage("There are no recordings to export.");
+          return;
+        }
+
+        showMessage("Preparing export... Please wait.");
+
+        const zip = new JSZip();
+        const audioFolder = zip.folder("wavs");
+
+        let tsvContent =
+          "filename\tprompt\ttimestamp\tsample_rate\tbit_depth\n";
+        recordings.forEach((rec) => {
+          const safePrompt = rec.prompt.replace(/\s/g, " "); // Sanitize prompt for TSV
+          tsvContent += `${rec.filename}\t${safePrompt}\t${rec.timestamp}\t${rec.sample_rate}\t${rec.bit_depth}\n`;
+          audioFolder.file(rec.filename, rec.audio_blob);
+        });
+
+        zip.file("recordings.tsv", tsvContent);
+
+        zip
+          .generateAsync({ type: "blob" })
+          .then(function (content) {
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(content);
+            const sessionName = `tts_session_${
+              new Date().toISOString().split("T")[0]
+            }.zip`;
+            link.download = sessionName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            hideMessage();
+          })
+          .catch((err) => {
+            console.error("Error creating zip file:", err);
+            showMessage("An error occurred while creating the zip file.");
+          });
+      }
+
+      // --- WAV Conversion Utility ---
+      async function createWavBlob(audioBlob) {
+        const audioContext = new (window.AudioContext ||
+          window.webkitAudioContext)();
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+        const sampleRate = audioBuffer.sampleRate;
+        const numChannels = audioBuffer.numberOfChannels;
+        const pcmData = audioBuffer.getChannelData(0); // Assuming mono
+
+        const bitDepth = 16;
+        const bytesPerSample = bitDepth / 8;
+        const dataSize = pcmData.length * bytesPerSample;
+        const blockAlign = numChannels * bytesPerSample;
+        const byteRate = sampleRate * blockAlign;
+
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+
+        // RIFF header
+        writeString(view, 0, "RIFF");
+        view.setUint32(4, 36 + dataSize, true);
+        writeString(view, 8, "WAVE");
+        // fmt sub-chunk
+        writeString(view, 12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); // PCM
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, bitDepth, true);
+        // data sub-chunk
+        writeString(view, 36, "data");
+        view.setUint32(40, dataSize, true);
+
+        // Write PCM data
+        let offset = 44;
+        for (let i = 0; i < pcmData.length; i++, offset += 2) {
+          let s = Math.max(-1, Math.min(1, pcmData[i]));
+          view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        }
+
+        const wavBlob = new Blob([view], { type: "audio/wav" });
+        wavBlob.sampleRate = sampleRate; // Attach sample rate for metadata
+        return wavBlob;
+      }
+
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+
+      // --- Event Listeners ---
+      promptFileInput.addEventListener("change", handleFileSelect);
+      startSessionBtn.addEventListener("click", startSession);
+
+      recordBtn.addEventListener("click", () => {
+        isRecording ? stopRecording() : startRecording();
+      });
+
+      playBtn.addEventListener("click", playLastRecording);
+      saveBtn.addEventListener("click", saveRecording);
+      nextPromptBtn.addEventListener("click", nextPrompt);
+      exportBtn.addEventListener("click", exportSession);
+      modalClose.addEventListener("click", hideMessage);
+
+      window.addEventListener("beforeunload", (event) => {
+        if (isRecording || lastAudioBlob) {
+          event.preventDefault();
+          event.returnValue = ""; // Standard for most browsers
+          return "You have unsaved changes. Are you sure you want to leave?";
+        }
+      });
+
+      // --- Initialization ---
+      async function initializeApp() {
+        try {
+          await initDB();
+          const recordings = await getAllRecordingsFromDB();
+          if (recordings.length > 0) {
+            const resume = confirm(
+              "It looks like you have a saved session. Do you want to resume it? \n\nClick 'Cancel' to start a new session (this will delete your old data)."
+            );
+            if (resume) {
+              showMessage(
+                "Please re-upload your prompt file to continue your session."
+              );
+            } else {
+              await clearDB();
+              showMessage("Previous session cleared. Please start a new one.");
+            }
+          }
+        } catch (err) {
+          console.error("Initialization failed", err);
+          showMessage(
+            "Could not initialize the application. Please ensure your browser supports IndexedDB and try again."
+          );
+        }
+        updateUI();
+      }
+
+      initializeApp();
+    </script>
+  </body>
+</html>
