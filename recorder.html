@@ -13,6 +13,12 @@
     <style>
       body {
         font-family: "Inter", sans-serif;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      main {
+        flex-grow: 1;
       }
       .recording-indicator {
         animation: pulse 1.5s infinite;
@@ -31,7 +37,6 @@
   <body class="bg-gray-50 text-gray-800">
     <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
       <header class="text-center mb-8">
-        <!-- Responsive header font sizes for mobile, tablet, and desktop -->
         <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
           Speech Training Recorder
         </h1>
@@ -49,7 +54,6 @@
           <h2 class="text-xl font-semibold mb-4 border-b pb-2">
             1. Configuration
           </h2>
-          <!-- This grid stacks on mobile and becomes 2 columns on medium screens (md) and up -->
           <div class="grid md:grid-cols-2 gap-6">
             <div>
               <label
@@ -102,14 +106,12 @@
               ></span>
               2. Record Audio
             </h2>
-            <!-- Responsive prompt font sizes -->
             <div
               id="prompt-display"
               class="my-4 p-4 sm:p-6 text-center text-base sm:text-lg md:text-xl font-medium bg-gray-100 rounded-lg min-h-[120px] flex items-center justify-center"
             >
               <p>Welcome! Press 'Next Prompt' to begin.</p>
             </div>
-            <!-- Button grid: 2 columns on mobile/tablet, 4 columns on large screens (lg) -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <button
                 id="record-btn"
@@ -178,6 +180,10 @@
           </div>
         </div>
       </main>
+
+      <footer class="text-center py-4 mt-8">
+        <p class="text-sm text-gray-500">Created by Htut Ko Ko.</p>
+      </footer>
     </div>
 
     <script type="module">
@@ -316,7 +322,6 @@
         if (mediaRecorder && mediaRecorder.state === "recording") {
           mediaRecorder.stop();
           isRecording = false;
-          // Stop all media tracks to turn off the microphone indicator
           mediaRecorder.stream.getTracks().forEach((track) => track.stop());
         }
       }
@@ -366,10 +371,7 @@
         if (prompts.length === 0) return -1;
 
         if (promptSelectionMode === "ordered") {
-          if (usedPromptIndices.size >= prompts.length) {
-            return -1; // End of list
-          }
-          // Find the next unused index
+          if (usedPromptIndices.size >= prompts.length) return -1;
           for (let i = 0; i < prompts.length; i++) {
             if (!usedPromptIndices.has(i)) return i;
           }
@@ -380,10 +382,7 @@
           return (currentPromptIndex + 1) % prompts.length;
         }
 
-        // Random mode
-        if (usedPromptIndices.size >= prompts.length) {
-          return -1; // All prompts used
-        }
+        if (usedPromptIndices.size >= prompts.length) return -1;
         let nextIndex;
         do {
           nextIndex = Math.floor(Math.random() * prompts.length);
@@ -396,12 +395,11 @@
         if (nextIndex === -1) {
           currentPrompt = "No more prompts available.";
           showMessage("You've completed all prompts!");
-          updateUI();
-          return;
+        } else {
+          currentPromptIndex = nextIndex;
+          usedPromptIndices.add(currentPromptIndex);
+          currentPrompt = prompts[currentPromptIndex];
         }
-        currentPromptIndex = nextIndex;
-        usedPromptIndices.add(currentPromptIndex);
-        currentPrompt = prompts[currentPromptIndex];
         lastAudioBlob = null;
         updateUI();
       }
@@ -417,15 +415,14 @@
           .toISOString()
           .replace(/[-:.]/g, "")
           .slice(0, -4)}Z.wav`;
-
         const wavBlob = await createWavBlob(lastAudioBlob);
 
         const recordingData = {
           filename: filename,
           prompt: currentPrompt,
           timestamp: timestamp.toISOString(),
-          sample_rate: wavBlob.sampleRate, // Get actual sample rate
-          bit_depth: 16, // This is an assumption from the converter
+          sample_rate: wavBlob.sampleRate,
+          bit_depth: 16,
           audio_blob: wavBlob,
         };
 
@@ -433,8 +430,7 @@
           await saveRecordingToDB(recordingData);
           addRecordingToList(recordingData);
           showMessage("Recording saved successfully!");
-          lastAudioBlob = null; // Clear after saving
-          nextPrompt(); // Automatically go to next prompt
+          nextPrompt();
         } catch (error) {
           showMessage(`Error: ${error}`);
         }
@@ -443,11 +439,10 @@
       async function loadRecordingsFromDB() {
         const recordings = await getAllRecordingsFromDB();
         recordingsList.innerHTML = "";
-        usedPromptIndices.clear(); // Reset used prompts
+        usedPromptIndices.clear();
         if (recordings.length > 0) {
           recordings.forEach((rec) => {
             addRecordingToList(rec);
-            // Find the prompt index to mark it as used
             const promptIndex = prompts.findIndex((p) => p === rec.prompt);
             if (promptIndex !== -1) {
               usedPromptIndices.add(promptIndex);
@@ -459,13 +454,9 @@
 
       // --- UI Functions ---
       function updateUI() {
-        // Config section
         startSessionBtn.disabled = prompts.length === 0;
-
-        // Recorder section
         promptDisplay.textContent =
           currentPrompt || "Upload a file and start the session.";
-
         recordBtn.disabled =
           !currentPrompt || currentPrompt.startsWith("No more");
         recordBtn.textContent = isRecording
@@ -529,7 +520,7 @@
         let tsvContent =
           "filename\tprompt\ttimestamp\tsample_rate\tbit_depth\n";
         recordings.forEach((rec) => {
-          const safePrompt = rec.prompt.replace(/\s/g, " "); // Sanitize prompt for TSV
+          const safePrompt = rec.prompt.replace(/\s/g, " ");
           tsvContent += `${rec.filename}\t${safePrompt}\t${rec.timestamp}\t${rec.sample_rate}\t${rec.bit_depth}\n`;
           audioFolder.file(rec.filename, rec.audio_blob);
         });
@@ -565,7 +556,7 @@
 
         const sampleRate = audioBuffer.sampleRate;
         const numChannels = audioBuffer.numberOfChannels;
-        const pcmData = audioBuffer.getChannelData(0); // Assuming mono
+        const pcmData = audioBuffer.getChannelData(0);
 
         const bitDepth = 16;
         const bytesPerSample = bitDepth / 8;
@@ -576,24 +567,20 @@
         const buffer = new ArrayBuffer(44 + dataSize);
         const view = new DataView(buffer);
 
-        // RIFF header
         writeString(view, 0, "RIFF");
         view.setUint32(4, 36 + dataSize, true);
         writeString(view, 8, "WAVE");
-        // fmt sub-chunk
         writeString(view, 12, "fmt ");
         view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true); // PCM
+        view.setUint16(20, 1, true);
         view.setUint16(22, numChannels, true);
         view.setUint32(24, sampleRate, true);
         view.setUint32(28, byteRate, true);
         view.setUint16(32, blockAlign, true);
         view.setUint16(34, bitDepth, true);
-        // data sub-chunk
         writeString(view, 36, "data");
         view.setUint32(40, dataSize, true);
 
-        // Write PCM data
         let offset = 44;
         for (let i = 0; i < pcmData.length; i++, offset += 2) {
           let s = Math.max(-1, Math.min(1, pcmData[i]));
@@ -601,7 +588,7 @@
         }
 
         const wavBlob = new Blob([view], { type: "audio/wav" });
-        wavBlob.sampleRate = sampleRate; // Attach sample rate for metadata
+        wavBlob.sampleRate = sampleRate;
         return wavBlob;
       }
 
@@ -628,7 +615,7 @@
       window.addEventListener("beforeunload", (event) => {
         if (isRecording || lastAudioBlob) {
           event.preventDefault();
-          event.returnValue = ""; // Standard for most browsers
+          event.returnValue = "";
           return "You have unsaved changes. Are you sure you want to leave?";
         }
       });
