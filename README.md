@@ -41,14 +41,11 @@ This application allows users to upload a script, record themselves reading the 
 
 The exported `.zip` file is named `tts_session_YYYY-MM-DD.zip` and contains the following structure, which is ideal for feeding into model training pipelines:
 
-tts_session_2025-06-24.zip
-│
-├── wavs/
-│ ├── recording_20250624T093000Z.wav
-│ ├── recording_20250624T093015Z.wav
-│ └── ... (all other audio files)
-│
-└── recordings.tsv
+##### tts_session_2025-06-24.zip
+##### |-- wavs/recording_20250624T093000Z.wav
+##### |--|----- recording_20250624T093015Z.wav
+##### |--|----- ... (all other audio files)
+##### |-- recordings.tsv
 
 The `recordings.tsv` is a tab-separated file that maps each audio file to its corresponding text:
 
