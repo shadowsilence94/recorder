@@ -302,7 +302,10 @@
           };
 
           mediaRecorder.onstop = () => {
-            lastAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+            // FIX: Use the recorder's actual MIME type, not a hardcoded 'audio/wav'.
+            // This is crucial for playback compatibility on mobile devices.
+            const mimeType = mediaRecorder.mimeType || "audio/webm";
+            lastAudioBlob = new Blob(audioChunks, { type: mimeType });
             updateUI();
           };
 
@@ -326,11 +329,18 @@
         }
       }
 
-      function playLastRecording() {
+      async function playLastRecording() {
         if (lastAudioBlob) {
           const audioUrl = URL.createObjectURL(lastAudioBlob);
           const audio = new Audio(audioUrl);
-          audio.play();
+          try {
+            await audio.play();
+          } catch (err) {
+            console.error("Playback failed:", err);
+            showMessage(
+              `Playback failed. This can happen on some mobile browsers. Error: ${err.name}`
+            );
+          }
         }
       }
 
