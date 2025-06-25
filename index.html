@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Recorder Platform</title>
+    <title>TTS Data Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link
@@ -439,72 +439,51 @@
         });
       }
 
-      const dbAction = (storeName, mode, action) => {
+      function dbReadAction(storeName, action) {
         return new Promise((resolve, reject) => {
-          try {
-            const tx = db.transaction(storeName, mode);
-            const store = tx.objectStore(storeName);
-            action(store, resolve, reject);
-            tx.oncomplete = () => resolve();
-            tx.onerror = (event) => reject(event.target.error);
-          } catch (err) {
-            reject(err);
-          }
+          const tx = db.transaction(storeName, "readonly");
+          const store = tx.objectStore(storeName);
+          const request = action(store);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = (event) => reject(event.target.error);
         });
-      };
+      }
+
+      function dbWriteAction(storeName, action) {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, "readwrite");
+          const store = tx.objectStore(storeName);
+          action(store);
+          tx.oncomplete = () => resolve();
+          tx.onerror = (event) => reject(event.target.error);
+        });
+      }
 
       const saveFileToDB = (fileData) =>
-        dbAction(FILES_STORE_NAME, "readwrite", (store, resolve) =>
-          store.put(fileData)
-        );
+        dbWriteAction(FILES_STORE_NAME, (store) => store.put(fileData));
       const getFileFromDB = (filename) =>
-        dbAction(
-          FILES_STORE_NAME,
-          "readonly",
-          (store, resolve) =>
-            (store.get(filename).onsuccess = (e) => resolve(e.target.result))
-        );
+        dbReadAction(FILES_STORE_NAME, (store) => store.get(filename));
       const getAllFilesFromDB = () =>
-        dbAction(
-          FILES_STORE_NAME,
-          "readonly",
-          (store, resolve) =>
-            (store.getAll().onsuccess = (e) => resolve(e.target.result))
-        );
+        dbReadAction(FILES_STORE_NAME, (store) => store.getAll());
       const deleteFileFromDB = (filename) =>
-        dbAction(FILES_STORE_NAME, "readwrite", (store) =>
-          store.delete(filename)
-        );
+        dbWriteAction(FILES_STORE_NAME, (store) => store.delete(filename));
+
       const saveRecordingToDB = (recData) =>
-        dbAction(RECORDINGS_STORE_NAME, "readwrite", (store) =>
-          store.add(recData)
-        );
+        dbWriteAction(RECORDINGS_STORE_NAME, (store) => store.add(recData));
       const getAllRecordingsFromDB = () =>
-        dbAction(
-          RECORDINGS_STORE_NAME,
-          "readonly",
-          (store, resolve) =>
-            (store.getAll().onsuccess = (e) => resolve(e.target.result))
-        );
+        dbReadAction(RECORDINGS_STORE_NAME, (store) => store.getAll());
       const getRecordingsForFileFromDB = (filename) =>
-        dbAction(
-          RECORDINGS_STORE_NAME,
-          "readonly",
-          (store, resolve) =>
-            (store.index("by_promptFile").getAll(filename).onsuccess = (e) =>
-              resolve(e.target.result))
+        dbReadAction(RECORDINGS_STORE_NAME, (store) =>
+          store.index("by_promptFile").getAll(filename)
         );
       const deleteRecordingFromDB = (filename) =>
-        dbAction(RECORDINGS_STORE_NAME, "readwrite", (store) =>
-          store.delete(filename)
-        );
+        dbWriteAction(RECORDINGS_STORE_NAME, (store) => store.delete(filename));
 
       const deleteRecordingsForFile = async (filename) => {
-        const recordingsToDelete = await getRecordingsForFileFromDB(filename);
-        const deletePromises = recordingsToDelete.map((rec) =>
-          deleteRecordingFromDB(rec.filename)
-        );
-        await Promise.all(deletePromises);
+        return dbWriteAction(RECORDINGS_STORE_NAME, async (store) => {
+          const recordingsToDelete = await getRecordingsForFileFromDB(filename);
+          recordingsToDelete.forEach((rec) => store.delete(rec.filename));
+        });
       };
 
       // --- Core Application Logic ---
@@ -859,6 +838,7 @@
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
           hideMessage();
         });
       }
@@ -907,6 +887,7 @@
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
           hideMessage();
         });
       }
