@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Audio Recording Platform</title>
+    <title>TTS Data Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link
@@ -73,10 +73,10 @@
           <h1
             class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white"
           >
-            LU Lab Audio Recorder
+            Data Collection Platform
           </h1>
           <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm sm:text-base">
-            Manage files and record audio for ASR/TTS project.
+            Manage files and record audio for your ASR/TTS projects.
           </p>
         </div>
         <button
@@ -188,20 +188,38 @@
             </div>
           </div>
 
-          <div class="mb-6">
-            <label
-              for="recorder-prompt-selection"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >Selection Mode</label
-            >
-            <select
-              id="recorder-prompt-selection"
-              class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white dark:bg-gray-700"
-            >
-              <option value="ordered">Ordered (Record unseen prompts)</option>
-              <option value="sequential">Sequential (Loop through all)</option>
-              <option value="random">Random (Pick unseen randomly)</option>
-            </select>
+          <div class="grid sm:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label
+                for="recorder-prompt-selection"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Selection Mode</label
+              >
+              <select
+                id="recorder-prompt-selection"
+                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white dark:bg-gray-700"
+              >
+                <option value="ordered">Ordered (Record unseen prompts)</option>
+                <option value="sequential">
+                  Sequential (Loop through all)
+                </option>
+                <option value="random">Random (Pick unseen randomly)</option>
+              </select>
+            </div>
+            <div>
+              <label
+                for="recorder-sample-rate"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Sample Rate</label
+              >
+              <select
+                id="recorder-sample-rate"
+                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white dark:bg-gray-700"
+              >
+                <option value="48000">48 kHz (High Quality)</option>
+                <option value="16000">16 kHz (Standard Speech)</option>
+              </select>
+            </div>
           </div>
 
           <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg mb-6">
@@ -310,7 +328,8 @@
       let currentPromptFile = null;
       let currentPromptIndex = -1;
       let currentPrompt = "";
-      let promptSelectionMode = "ordered"; // Default mode
+      let promptSelectionMode = "ordered";
+      let sampleRate = 48000;
       let usedPromptIndices = new Set();
       let mediaRecorder;
       let audioChunks = [];
@@ -341,6 +360,9 @@
       const recorderTitle = document.getElementById("recorder-title");
       const recorderPromptSelection = document.getElementById(
         "recorder-prompt-selection"
+      );
+      const recorderSampleRate = document.getElementById(
+        "recorder-sample-rate"
       );
       const promptDisplay = document.getElementById("prompt-display");
       const recordBtn = document.getElementById("record-btn");
@@ -506,7 +528,7 @@
         const filesToProcess = Array.from(files);
         const totalFiles = filesToProcess.length;
         let processedCount = 0;
-        const CHUNK_SIZE = 10; // Process 10 files at a time to avoid memory issues
+        const CHUNK_SIZE = 10;
 
         async function processChunk() {
           const chunk = filesToProcess.splice(0, CHUNK_SIZE);
@@ -539,8 +561,6 @@
           });
 
           await Promise.all(readPromises);
-
-          // Use requestAnimationFrame to yield to the main thread before the next chunk
           requestAnimationFrame(processChunk);
         }
 
@@ -611,6 +631,7 @@
 
         promptSelectionMode = "ordered";
         recorderPromptSelection.value = "ordered";
+        sampleRate = parseInt(recorderSampleRate.value, 10);
 
         const recordings = await getRecordingsForFileFromDB(filename);
         usedPromptIndices.clear();
@@ -649,7 +670,7 @@
           filename,
           prompt: currentPrompt,
           timestamp: timestamp.toISOString(),
-          sample_rate: wavBlob.sampleRate,
+          sample_rate: sampleRate,
           bit_depth: 16,
           audio_blob: wavBlob,
           promptFile: currentPromptFile,
@@ -741,7 +762,7 @@
         }
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
+            audio: { sampleRate: sampleRate },
           });
           isRecording = true;
           mediaRecorder = new MediaRecorder(stream);
@@ -759,8 +780,9 @@
         } catch (err) {
           isRecording = false;
           showMessage(
-            "Microphone access denied. Please allow access in browser settings."
+            "Microphone access denied or sample rate not supported. Please allow access and try again."
           );
+          console.error("Error accessing microphone:", err);
           updateRecorderUI();
         }
       }
@@ -811,10 +833,13 @@
 
       async function createWavBlob(audioBlob) {
         const audioContext = new (window.AudioContext ||
-          window.webkitAudioContext)();
+          window.webkitAudioContext)({ sampleRate: sampleRate });
         const arrayBuffer = await audioBlob.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        const [sampleRate, numChannels, pcmData] = [
+        // This part is a simplification. True resampling is complex.
+        // The browser will have already recorded at the requested sampleRate if possible.
+        // This function now primarily just formats the blob into a standard WAV header.
+        const [localSampleRate, numChannels, pcmData] = [
           audioBuffer.sampleRate,
           1,
           audioBuffer.getChannelData(0),
@@ -833,8 +858,12 @@
         view.setUint32(16, 16, true);
         view.setUint16(20, 1, true);
         view.setUint16(22, numChannels, true);
-        view.setUint32(24, sampleRate, true);
-        view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
+        view.setUint32(24, localSampleRate, true);
+        view.setUint32(
+          28,
+          localSampleRate * numChannels * bytesPerSample,
+          true
+        );
         view.setUint16(32, numChannels * bytesPerSample, true);
         view.setUint16(34, bitDepth, true);
         writeString(view, 36, "data");
@@ -845,7 +874,6 @@
           view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
         }
         const wavBlob = new Blob([view], { type: "audio/wav" });
-        wavBlob.sampleRate = sampleRate;
         return wavBlob;
       }
 
@@ -891,6 +919,9 @@
       clearAllBtn.addEventListener("click", handleClearCurrentSession);
       recorderPromptSelection.addEventListener("change", (e) => {
         promptSelectionMode = e.target.value;
+      });
+      recorderSampleRate.addEventListener("change", (e) => {
+        sampleRate = parseInt(e.target.value, 10);
       });
       modalClose.addEventListener("click", hideMessage);
 
