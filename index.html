@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LU Lab recording Platform</title>
+    <title>Recorder Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link
@@ -192,8 +192,11 @@
               >
                 Recording Session
               </h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400">
-                Select a prompt and start recording.
+              <p
+                id="recorder-progress-status"
+                class="text-sm text-gray-500 dark:text-gray-400"
+              >
+                Loading progress...
               </p>
             </div>
           </div>
@@ -369,6 +372,9 @@
       );
       const backToFilesBtn = document.getElementById("back-to-files-btn");
       const recorderTitle = document.getElementById("recorder-title");
+      const recorderProgressStatus = document.getElementById(
+        "recorder-progress-status"
+      );
       const recorderPromptSelection = document.getElementById(
         "recorder-prompt-selection"
       );
@@ -748,6 +754,7 @@
 
       // --- UI Functions ---
       function updateRecorderUI() {
+        recorderProgressStatus.textContent = `${usedPromptIndices.size} / ${prompts.length} prompts recorded`;
         promptDisplay.textContent = currentPrompt || "No prompt selected.";
         recordBtn.disabled =
           !currentPrompt || currentPrompt.startsWith("No more");
