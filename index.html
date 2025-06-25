@@ -122,7 +122,17 @@
           id="file-manager-section"
           class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg"
         >
-          <h2 class="text-xl font-semibold mb-4">Project Files</h2>
+          <div
+            class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-3"
+          >
+            <h2 class="text-xl font-semibold">Project Files</h2>
+            <button
+              id="export-all-btn"
+              class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 transition text-sm disabled:bg-gray-400"
+            >
+              Export All Projects
+            </button>
+          </div>
           <div
             id="file-drop-zone"
             class="file-drop-zone rounded-lg p-8 text-center text-gray-500 dark:text-gray-400 transition mb-6"
@@ -288,7 +298,7 @@
             ></ul>
             <div class="mt-6 text-center">
               <button
-                id="export-btn"
+                id="export-session-btn"
                 class="bg-purple-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-700 transition disabled:bg-gray-400 w-full sm:w-auto"
               >
                 Export Session (.zip)
@@ -352,6 +362,7 @@
       const fileDropZone = document.getElementById("file-drop-zone");
       const promptFileInput = document.getElementById("prompt-file-input");
       const uploadBtn = document.getElementById("upload-btn");
+      const exportAllBtn = document.getElementById("export-all-btn");
       const fileList = document.getElementById("file-list");
       const noFilesManagerMessage = document.getElementById(
         "no-files-manager-message"
@@ -369,7 +380,7 @@
       const playBtn = document.getElementById("play-btn");
       const saveBtn = document.getElementById("save-btn");
       const nextPromptBtn = document.getElementById("next-prompt-btn");
-      const exportBtn = document.getElementById("export-btn");
+      const exportSessionBtn = document.getElementById("export-session-btn");
       const clearAllBtn = document.getElementById("clear-all-btn");
       const recordingsList = document.getElementById("recordings-list");
       const noFilesMessage = document.getElementById("no-files-message");
@@ -461,6 +472,13 @@
       const saveRecordingToDB = (recData) =>
         dbAction(RECORDINGS_STORE_NAME, "readwrite", (store) =>
           store.add(recData)
+        );
+      const getAllRecordingsFromDB = () =>
+        dbAction(
+          RECORDINGS_STORE_NAME,
+          "readonly",
+          (store, resolve) =>
+            (store.getAll().onsuccess = (e) => resolve(e.target.result))
         );
       const getRecordingsForFileFromDB = (filename) =>
         dbAction(
@@ -572,6 +590,7 @@
         const files = await getAllFilesFromDB();
         fileList.innerHTML = "";
         noFilesManagerMessage.classList.toggle("hidden", files.length > 0);
+        exportAllBtn.disabled = files.length === 0;
 
         for (const file of files) {
           const recordings = await getRecordingsForFileFromDB(file.filename);
@@ -581,13 +600,20 @@
             .filter(Boolean).length;
           const li = document.createElement("li");
           li.className =
-            "bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg flex items-center justify-between";
+            "bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg flex items-center justify-between gap-2";
           li.innerHTML = `
-                    <div class="truncate mr-4">
-                        <p class="font-semibold text-gray-800 dark:text-gray-200">${file.filename}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Progress: ${recordings.length} / ${totalPrompts} recorded</p>
+                    <div class="truncate mr-4 flex-grow">
+                        <p class="font-semibold text-gray-800 dark:text-gray-200">${
+                          file.filename
+                        }</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Progress: ${
+                          recordings.length
+                        } / ${totalPrompts} recorded</p>
                     </div>
                     <div class="flex-shrink-0 flex items-center gap-2">
+                        <button class="export-single-btn bg-green-600 text-white font-semibold py-2 px-4 rounded-md text-sm hover:bg-green-700 transition" ${
+                          recordings.length === 0 ? "disabled" : ""
+                        }>Export</button>
                         <button class="start-session-btn bg-blue-600 text-white font-semibold py-2 px-4 rounded-md text-sm hover:bg-blue-700 transition">Record</button>
                         <button class="delete-file-btn p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -598,6 +624,8 @@
             startRecordingSession(file.filename);
           li.querySelector(".delete-file-btn").onclick = () =>
             handleDeleteFile(file.filename);
+          li.querySelector(".export-single-btn").onclick = () =>
+            exportSingleSession(file.filename);
           fileList.appendChild(li);
         }
       }
@@ -737,7 +765,7 @@
 
         const hasRecordings = recordingsList.children.length > 0;
         noFilesMessage.classList.toggle("hidden", hasRecordings);
-        exportBtn.disabled = !hasRecordings;
+        exportSessionBtn.disabled = !hasRecordings;
         clearAllBtn.disabled = !hasRecordings;
       }
 
@@ -799,8 +827,8 @@
         if (lastAudioBlob) new Audio(URL.createObjectURL(lastAudioBlob)).play();
       }
 
-      async function exportSession() {
-        const recordings = await getRecordingsForFileFromDB(currentPromptFile);
+      async function exportSingleSession(promptFilename) {
+        const recordings = await getRecordingsForFileFromDB(promptFilename);
         if (recordings.length === 0) {
           showMessage("No recordings in this session to export.");
           return;
@@ -820,10 +848,55 @@
         zip.generateAsync({ type: "blob" }).then((content) => {
           const link = document.createElement("a");
           link.href = URL.createObjectURL(content);
-          link.download = `${currentPromptFile.replace(
-            ".txt",
-            ""
-          )}_session.zip`;
+          link.download = `${promptFilename.replace(".txt", "")}_session.zip`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          hideMessage();
+        });
+      }
+
+      async function exportAllSessions() {
+        const allFiles = await getAllFilesFromDB();
+        if (allFiles.length === 0) {
+          showMessage("No projects to export.");
+          return;
+        }
+        showMessage("Preparing master export... This may take a moment.");
+
+        const masterZip = new JSZip();
+        const allRecordings = await getAllRecordingsFromDB();
+
+        for (const file of allFiles) {
+          const projectFolder = masterZip.folder(
+            file.filename.replace(".txt", "")
+          );
+          const wavsFolder = projectFolder.folder("wavs");
+          let tsvContent =
+            "filename\tprompt\ttimestamp\tsample_rate\tbit_depth\n";
+
+          const projectRecordings = allRecordings.filter(
+            (rec) => rec.promptFile === file.filename
+          );
+
+          if (projectRecordings.length > 0) {
+            projectRecordings.forEach((rec) => {
+              tsvContent += `${rec.filename}\t${rec.prompt.replace(
+                /\s/g,
+                " "
+              )}\t${rec.timestamp}\t${rec.sample_rate}\t${rec.bit_depth}\n`;
+              wavsFolder.file(rec.filename, rec.audio_blob);
+            });
+            projectFolder.file("recordings.tsv", tsvContent);
+          }
+        }
+
+        masterZip.generateAsync({ type: "blob" }).then((content) => {
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(content);
+          link.download = `All_Projects_${
+            new Date().toISOString().split("T")[0]
+          }.zip`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -836,9 +909,6 @@
           window.webkitAudioContext)({ sampleRate: sampleRate });
         const arrayBuffer = await audioBlob.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        // This part is a simplification. True resampling is complex.
-        // The browser will have already recorded at the requested sampleRate if possible.
-        // This function now primarily just formats the blob into a standard WAV header.
         const [localSampleRate, numChannels, pcmData] = [
           audioBuffer.sampleRate,
           1,
@@ -915,7 +985,10 @@
       playBtn.addEventListener("click", playLastRecording);
       saveBtn.addEventListener("click", saveRecording);
       nextPromptBtn.addEventListener("click", nextPrompt);
-      exportBtn.addEventListener("click", exportSession);
+      exportSessionBtn.addEventListener("click", () =>
+        exportSingleSession(currentPromptFile)
+      );
+      exportAllBtn.addEventListener("click", exportAllSessions);
       clearAllBtn.addEventListener("click", handleClearCurrentSession);
       recorderPromptSelection.addEventListener("change", (e) => {
         promptSelectionMode = e.target.value;
