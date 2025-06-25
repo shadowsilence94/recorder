@@ -439,52 +439,81 @@
         });
       }
 
-      function dbReadAction(storeName, action) {
+      function dbRead(storeName, query) {
         return new Promise((resolve, reject) => {
           const tx = db.transaction(storeName, "readonly");
           const store = tx.objectStore(storeName);
-          const request = action(store);
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = (event) => reject(event.target.error);
+          const request = store.get(query);
+          tx.oncomplete = () => resolve(request.result);
+          tx.onerror = (event) => reject(event.target.error);
         });
       }
 
-      function dbWriteAction(storeName, action) {
+      function dbReadAll(storeName) {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, "readonly");
+          const store = tx.objectStore(storeName);
+          const request = store.getAll();
+          tx.oncomplete = () => resolve(request.result);
+          tx.onerror = (event) => reject(event.target.error);
+        });
+      }
+
+      function dbReadByIndex(storeName, indexName, query) {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, "readonly");
+          const store = tx.objectStore(storeName);
+          const index = store.index(indexName);
+          const request = index.getAll(query);
+          tx.oncomplete = () => resolve(request.result);
+          tx.onerror = (event) => reject(event.target.error);
+        });
+      }
+
+      function dbWrite(storeName, data, mode = "put") {
         return new Promise((resolve, reject) => {
           const tx = db.transaction(storeName, "readwrite");
           const store = tx.objectStore(storeName);
-          action(store);
+          if (mode === "put") {
+            store.put(data);
+          } else if (mode === "add") {
+            store.add(data);
+          }
           tx.oncomplete = () => resolve();
           tx.onerror = (event) => reject(event.target.error);
         });
       }
 
-      const saveFileToDB = (fileData) =>
-        dbWriteAction(FILES_STORE_NAME, (store) => store.put(fileData));
-      const getFileFromDB = (filename) =>
-        dbReadAction(FILES_STORE_NAME, (store) => store.get(filename));
-      const getAllFilesFromDB = () =>
-        dbReadAction(FILES_STORE_NAME, (store) => store.getAll());
-      const deleteFileFromDB = (filename) =>
-        dbWriteAction(FILES_STORE_NAME, (store) => store.delete(filename));
-
-      const saveRecordingToDB = (recData) =>
-        dbWriteAction(RECORDINGS_STORE_NAME, (store) => store.add(recData));
-      const getAllRecordingsFromDB = () =>
-        dbReadAction(RECORDINGS_STORE_NAME, (store) => store.getAll());
-      const getRecordingsForFileFromDB = (filename) =>
-        dbReadAction(RECORDINGS_STORE_NAME, (store) =>
-          store.index("by_promptFile").getAll(filename)
-        );
-      const deleteRecordingFromDB = (filename) =>
-        dbWriteAction(RECORDINGS_STORE_NAME, (store) => store.delete(filename));
+      function dbDelete(storeName, key) {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, "readwrite");
+          tx.objectStore(storeName).delete(key);
+          tx.oncomplete = () => resolve();
+          tx.onerror = (event) => reject(event.target.error);
+        });
+      }
 
       const deleteRecordingsForFile = async (filename) => {
-        return dbWriteAction(RECORDINGS_STORE_NAME, async (store) => {
-          const recordingsToDelete = await getRecordingsForFileFromDB(filename);
-          recordingsToDelete.forEach((rec) => store.delete(rec.filename));
-        });
+        const recordingsToDelete = await getRecordingsForFileFromDB(filename);
+        const deletePromises = recordingsToDelete.map((rec) =>
+          dbDelete(RECORDINGS_STORE_NAME, rec.filename)
+        );
+        await Promise.all(deletePromises);
       };
+
+      const getFileFromDB = (filename) => dbRead(FILES_STORE_NAME, filename);
+      const getAllFilesFromDB = () => dbReadAll(FILES_STORE_NAME);
+      const saveFileToDB = (fileData) => dbWrite(FILES_STORE_NAME, fileData);
+      const deleteFileFromDB = (filename) =>
+        dbDelete(FILES_STORE_NAME, filename);
+
+      const saveRecordingToDB = (recData) =>
+        dbWrite(RECORDINGS_STORE_NAME, recData, "add");
+      const getAllRecordingsFromDB = () => dbReadAll(RECORDINGS_STORE_NAME);
+      const getRecordingsForFileFromDB = (filename) =>
+        dbReadByIndex(RECORDINGS_STORE_NAME, "by_promptFile", filename);
+      const deleteRecordingFromDB = (filename) =>
+        dbDelete(RECORDINGS_STORE_NAME, filename);
 
       // --- Core Application Logic ---
       function getNextPromptIndex() {
